@@ -6,6 +6,7 @@ import cc3d
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 import cv2
+import time
 
 from image import Image, zeros_like
 
@@ -43,6 +44,7 @@ def get_parser():
 
 
 def main():
+    start_time = time.time()
     parser = get_parser()
     args = parser.parse_args()
     
@@ -59,8 +61,8 @@ def main():
         )
 
     DEFAULTS = {
-        "model_semantic": 't2w_segmentor',
-        "model_instance": 'inst_vertebra',
+        "model_semantic": 't2w_segmentor_2.0',
+        "model_instance": 'inst_vertebra_2.0',
         #
         "save_uncertainty_image": False,
         "save_softmax_logits": False,
@@ -86,91 +88,98 @@ def main():
     }
     
     # Preprocess input
-    # debug_data_run: dict[str, NII] = {}
-    # input_preprocessed, errcode = preprocess_input(
-    #             input_nii,
-    #             pad_size=input_package.pad_size,
-    #             debug_data=debug_data_run, 
-    #             do_crop=DEFAULTS['do_crop_semantic'],
-    #             do_n4=DEFAULTS['proc_n4correction'],
-    #             verbose=DEFAULTS['verbose'],
-    #         )
-    # # Run semantic segmentation
-    # seg_nii_modelres, unc_nii, softmax_logits, errcode = predict_semantic_mask(
-    #             input_preprocessed,
-    #             model=get_semantic_model(DEFAULTS['model_semantic']).load(),
-    #             debug_data=debug_data_run,
-    #             verbose=DEFAULTS['verbose'],
-    #             fill_holes=DEFAULTS['proc_fillholes'],
-    #             clean_artifacts=DEFAULTS['proc_clean'],
-    #         )
+    debug_data_run: dict[str, NII] = {}
+    input_preprocessed, errcode = preprocess_input(
+                input_nii,
+                pad_size=input_package.pad_size,
+                debug_data=debug_data_run, 
+                do_crop=DEFAULTS['do_crop_semantic'],
+                do_n4=DEFAULTS['proc_n4correction'],
+                verbose=DEFAULTS['verbose'],
+            )
+    # Run semantic segmentation
+    seg_nii_modelres, unc_nii, softmax_logits, errcode = predict_semantic_mask(
+                input_preprocessed,
+                model=get_semantic_model(DEFAULTS['model_semantic']).load(),
+                debug_data=debug_data_run,
+                verbose=DEFAULTS['verbose'],
+                fill_holes=DEFAULTS['proc_fillholes'],
+                clean_artifacts=DEFAULTS['proc_clean'],
+            )
     
-    # if (seg_nii_modelres.get_seg_array() == 0).all() or errcode != ErrCode.OK:
-    #     raise ValueError(f"Error with semantic segmentation: errcode {errcode}")
+    if (seg_nii_modelres.get_seg_array() == 0).all() or errcode != ErrCode.OK:
+        raise ValueError(f"Error with semantic segmentation: errcode {errcode}")
     
-    # # Save semantic prediction
-    # out_spine_raw = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-rawspine_dseg'))
-    # seg_nii_modelres.save(out_spine_raw)
+    # Save semantic prediction
+    out_spine_raw = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-rawspine_dseg'))
+    seg_nii_modelres.save(out_spine_raw)
 
-    # # Run instance prediction
-    # whole_vert_nii, errcode = predict_instance_mask(
-    #             seg_nii_modelres.copy(),
-    #             model=get_instance_model(DEFAULTS['model_instance']).load(),
-    #             debug_data=debug_data_run,
-    #             verbose=DEFAULTS['verbose'],
-    #             fill_holes=DEFAULTS['proc_fillholes'],
-    #             proc_corpus_clean=DEFAULTS['proc_corpus_clean'],
-    #             proc_cleanvert=DEFAULTS['proc_cleanvert'],
-    #             proc_largest_cc=DEFAULTS['proc_largest_cc'],
-    #         )
+    # Run instance prediction
+    whole_vert_nii, errcode = predict_instance_mask(
+                seg_nii_modelres.copy(),
+                model=get_instance_model(DEFAULTS['model_instance']).load(),
+                debug_data=debug_data_run,
+                verbose=DEFAULTS['verbose'],
+                fill_holes=DEFAULTS['proc_fillholes'],
+                proc_corpus_clean=DEFAULTS['proc_corpus_clean'],
+                proc_cleanvert=DEFAULTS['proc_cleanvert'],
+                proc_largest_cc=DEFAULTS['proc_largest_cc'],
+            )
 
-    # # Check for errors with instance segmentation
-    # if errcode != ErrCode.OK:
-    #     logger.print(f"Error with instance segmentation: errcode {errcode}")
+    # Check for errors with instance segmentation
+    if errcode != ErrCode.OK:
+        logger.print(f"Error with instance segmentation: errcode {errcode}")
     
-    # # Save instance prediction
-    # out_vert_raw = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-rawvert_dseg'))
-    # whole_vert_nii.save(out_vert_raw)
+    # Save instance prediction
+    out_vert_raw = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-rawvert_dseg'))
+    whole_vert_nii.save(out_vert_raw)
 
-    # # Cleanup Steps
-    # seg_nii_back = input_package.sample_to_this(seg_nii_modelres)
-    # whole_vert_nii = input_package.sample_to_this(whole_vert_nii, intermediate_nii=seg_nii_modelres)
+    # Cleanup Steps
+    seg_nii_back = input_package.sample_to_this(seg_nii_modelres)
+    whole_vert_nii = input_package.sample_to_this(whole_vert_nii, intermediate_nii=seg_nii_modelres)
 
-    # # use both seg_raw and vert_raw to clean each other, add ivd_ep ...
-    # seg_nii_clean, vert_nii_clean = phase_postprocess_combined(
-    #     seg_nii=seg_nii_back,
-    #     vert_nii=whole_vert_nii,
-    #     debug_data=debug_data_run,
-    #     labeling_offset=1,
-    #     proc_assign_missing_cc=DEFAULTS['proc_assign_missing_cc'],
-    #     verbose=DEFAULTS['verbose'],
-    # )
+    # use both seg_raw and vert_raw to clean each other, add ivd_ep ...
+    seg_nii_clean, vert_nii_clean = phase_postprocess_combined(
+        seg_nii=seg_nii_back,
+        vert_nii=whole_vert_nii,
+        debug_data=debug_data_run,
+        labeling_offset=1,
+        proc_assign_missing_cc=DEFAULTS['proc_assign_missing_cc'],
+        verbose=DEFAULTS['verbose'],
+    )
 
-    # seg_nii_clean.assert_affine(shape=vert_nii_clean.shape, zoom=vert_nii_clean.zoom, orientation=vert_nii_clean.orientation)
-    # input_package.make_nii_from_this(seg_nii_clean)
-    # input_package.make_nii_from_this(vert_nii_clean)
+    seg_nii_clean.assert_affine(shape=vert_nii_clean.shape, zoom=vert_nii_clean.zoom, orientation=vert_nii_clean.orientation)
+    input_package.make_nii_from_this(seg_nii_clean)
+    input_package.make_nii_from_this(vert_nii_clean)
 
-    # # Save cleaned images
-    # out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
+    # Save cleaned images
+    out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
     out_vert = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-vert_dseg'))
-    # seg_nii_clean.save(out_spine)
-    # vert_nii_clean.save(out_vert)
+    seg_nii_clean.save(out_spine)
+    vert_nii_clean.save(out_vert)
 
     # Extract discs labels
     vert_image = Image(out_vert)
-    discs_nii_clean = extract_discs_label(vert_image, mapping=DISCS_MAP)
+    img = Image(img_path)
+    discs_nii_clean = extract_discs_label(img, vert_image, ofolder_path, mapping=DISCS_MAP)
 
     # Save discs labels
     out_discs = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-discs_dlabel'))
     discs_nii_clean.save(out_discs)
+    end_time = time.time()
+    print('-'*20)
+    print(f'Total time used for computation {end_time-start_time} seconds')
+    print('-'*20)
 
 
 ##
-def extract_discs_label(label, mapping):
+def extract_discs_label(img, label, ofolder_path, mapping):
+    print('Creating discs labels')
     orig_orientation = label.orientation
 
     # Use RSP orientation
     label.change_orientation('RSP')
+    img.change_orientation('RSP')
 
     # Extract only discs segmentations based on mapping
     data = label.data
@@ -200,11 +209,17 @@ def extract_discs_label(label, mapping):
     discs_list = closest_point_seg_to_line(data_discs_seg, centerline_shifted, discs_bb)
 
     # Create image plot
+    shape = img.data.shape
     out_cv2 = np.zeros(data.shape[1:] + (3,)) # BGR
-    out_cv2[:,:,0] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*255 + create_2DGaussian_from_labels(centerline[:,1:], shape=(320, 320), radius=1)*178 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=(320, 320), radius=1)*0 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=(320, 320), radius=3)*51 # B
-    out_cv2[:,:,1] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*255 + create_2DGaussian_from_labels(centerline[:,1:], shape=(320, 320), radius=1)*102 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=(320, 320), radius=1)*0 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=(320, 320), radius=3)*255 # G
-    out_cv2[:,:,2] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*51 + create_2DGaussian_from_labels(centerline[:,1:], shape=(320, 320), radius=1)*255 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=(320, 320), radius=1)*255 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=(320, 320), radius=3)*255 # R
-    cv2.imwrite('test.png', out_cv2)
+    out_cv2[:,:,0] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*255 + create_2DGaussian_from_labels(centerline[:,1:], shape=shape[1:], radius=1)*178 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=shape[1:], radius=1)*0 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0 # B
+    out_cv2[:,:,1] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*255 + create_2DGaussian_from_labels(centerline[:,1:], shape=shape[1:], radius=1)*102 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=shape[1:], radius=1)*0 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0 # G
+    out_cv2[:,:,2] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*51 + create_2DGaussian_from_labels(centerline[:,1:], shape=shape[1:], radius=1)*255 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=shape[1:], radius=1)*255 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*255 # R
+    cv2.imwrite(os.path.join(ofolder_path,'pred_discs.png'), out_cv2)
+    out_cv2 = np.zeros(data.shape[1:] + (3,)) # BGR
+    out_cv2[:,:,0] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*204
+    out_cv2[:,:,1] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0
+    out_cv2[:,:,2] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0
+    cv2.imwrite(os.path.join(ofolder_path,'output.png'), out_cv2)
 
     # Create output Image
     data_discs = np.zeros_like(data)
