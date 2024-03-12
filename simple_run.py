@@ -153,7 +153,7 @@ def main():
     input_package.make_nii_from_this(vert_nii_clean)
 
     # Save cleaned images
-    out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
+    # out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
     out_vert = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-vert_dseg'))
     seg_nii_clean.save(out_spine)
     vert_nii_clean.save(out_vert)
@@ -216,9 +216,9 @@ def extract_discs_label(img, label, ofolder_path, mapping):
     out_cv2[:,:,2] = np.where(np.sum(data_discs_seg, axis=0)>0,1,0)*51 + create_2DGaussian_from_labels(centerline[:,1:], shape=shape[1:], radius=1)*255 + create_2DGaussian_from_labels(centerline_shifted[:,1:], shape=shape[1:], radius=1)*255 + create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*255 # R
     cv2.imwrite(os.path.join(ofolder_path,'pred_discs.png'), out_cv2)
     out_cv2 = np.zeros(data.shape[1:] + (3,)) # BGR
-    out_cv2[:,:,0] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*204
-    out_cv2[:,:,1] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0
-    out_cv2[:,:,2] = img.data[shape[0]//2, :, :]**0.5 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0
+    out_cv2[:,:,0] = normalize(img.data[shape[0]//2, :, :])*255 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*255
+    out_cv2[:,:,1] = normalize(img.data[shape[0]//2, :, :])*255 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*255
+    out_cv2[:,:,2] = normalize(img.data[shape[0]//2, :, :])*255 - create_2DGaussian_from_labels(discs_list[:,1:-1], shape=shape[1:], radius=3)*0
     cv2.imwrite(os.path.join(ofolder_path,'output.png'), out_cv2)
 
     # Create output Image
@@ -228,6 +228,10 @@ def extract_discs_label(img, label, ofolder_path, mapping):
     label.data = data_discs
     return label.change_orientation(orig_orientation)
 
+def normalize(arr):
+    ma = arr.max()
+    mi = arr.min()
+    return ((arr - mi) / (ma - mi))
 
 def project_point_on_line(point, line):
     """
