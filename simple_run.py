@@ -153,7 +153,7 @@ def main():
     input_package.make_nii_from_this(vert_nii_clean)
 
     # Save cleaned images
-    # out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
+    out_spine = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-spine_dseg'))
     out_vert = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-vert_dseg'))
     seg_nii_clean.save(out_spine)
     vert_nii_clean.save(out_vert)
