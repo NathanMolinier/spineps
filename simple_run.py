@@ -128,7 +128,7 @@ def main():
 
     # Check for errors with instance segmentation
     if errcode != ErrCode.OK:
-        logger.print(f"Error with instance segmentation: errcode {errcode}")
+        print(f"Error with instance segmentation: errcode {errcode}")
     
     # Save instance prediction
     out_vert_raw = os.path.join(ofolder_path, get_mask_name_from_img_name(fname, suffix='_label-rawvert_dseg'))
