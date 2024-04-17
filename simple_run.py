@@ -26,7 +26,7 @@ from spineps.seg_utils import (
 
 from TPTBox.core.nii_wrapper import NII
 
-DISCS_MAP = {102: 3, 103: 4, 104: 5, 
+DISCS_MAP = {2:1, 102: 3, 103: 4, 104: 5, 
              105: 6, 106: 7, 107: 8, 
              108: 9, 109: 10, 110: 11, 
              111: 12, 112: 13, 113: 14, 
@@ -37,7 +37,7 @@ DISCS_MAP = {102: 3, 103: 4, 104: 5,
 
 def get_parser():
     # parse command line arguments
-    parser = argparse.ArgumentParser(description='Convert BIDS-structured dataset to nnUNetV2 database format.')
+    parser = argparse.ArgumentParser(description='Simplify SPINEPS cli.')
     parser.add_argument('--path-in', required=True, help='Path to the input image. Example: /<path_to_BIDS_data>/sub-amuALT/anat/sub-amuALT_T2w.nii.gz (Required)')
     parser.add_argument('--ofolder', required=True, help='Path to the output directory. Example: ~/data/spineps-predictions (Required)')
     return parser
@@ -187,6 +187,15 @@ def extract_discs_label(img, label, ofolder_path, mapping):
     for seg_value, discs_value in mapping.items():
         data_discs_seg[np.where(data==seg_value)] = discs_value
     
+    # Deal with disc 1 obtained with the first vertebrae (Highest vertical coordinate)
+    if 1 in data_discs_seg: 
+        # If the first vertebrae is present identify label disc 1 at the top
+        vert1_seg = np.array(np.where(data_discs_seg==1))
+        disc1_idx = np.argmin(vert1_seg[1]) # find min on the S-I axis
+        disc1_coord = vert1_seg[:,disc1_idx]
+        data_discs_seg[np.where(data_discs_seg==1)] = 0
+        data_discs_seg[disc1_coord[0], disc1_coord[1], disc1_coord[2]] = 1
+    
     ## Identify the posterior tip of the disc
     # Extract the center of mass of every discs segmentation to create discs labels
     discs_centroids, discs_bb = extract_centroids_3D(data_discs_seg) # Centroids are sorted based on the vertical axis
@@ -207,6 +216,13 @@ def extract_discs_label(img, label, ofolder_path, mapping):
 
     # For each segmented disc, identify the closest voxel to this shifted centerline
     discs_list = closest_point_seg_to_line(data_discs_seg, centerline_shifted, discs_bb)
+
+    # Add disc 2 between disc 1 and 3
+    disc1_coord = discs_list[discs_list[:,-1]==1]
+    disc2_coord = discs_list[discs_list[:,-1]==3]
+    disc2_coord[0,1] = (disc2_coord[0,1] + disc1_coord[0,1])//2
+    disc2_coord[0,-1] = 2
+    discs_list = np.insert(discs_list, 1, disc2_coord, axis=0)
 
     # Create image plot
     shape = img.data.shape
