@@ -35,6 +35,10 @@ def main():
     path_in = os.path.abspath(args.path_vert)
     path_out = os.path.abspath(args.path_out) if args.path_out else default_name_discs(path_in)
 
+    # Check if output folder exists
+    if not os.path.exists(os.path.dirname(path_out)):
+        os.makedirs(os.path.dirname(path_out))
+
     # Extract discs labels
     vert_image = Image(path_in)
     print('-'*80)
