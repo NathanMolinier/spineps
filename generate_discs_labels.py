@@ -1,5 +1,7 @@
 '''
 This script generates discs labels using SPINEPS' vertebrae segmentation
+
+Author: Nathan Molinier
 '''
 import os
 import cc3d
