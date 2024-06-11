@@ -43,15 +43,13 @@ def get_parser():
     return parser
 
 
-def main():
+def run_prediction(path_in, ofolder):
     start_time = time.time()
-    parser = get_parser()
-    args = parser.parse_args()
     
     # Fetch paths
-    img_path = args.path_in
+    img_path = path_in
     fname = os.path.basename(img_path)
-    ofolder_path = args.ofolder
+    ofolder_path = ofolder
 
     # Load input image
     input_nii = NII.load(img_path, seg=False)
@@ -448,4 +446,6 @@ def fetch_subject_and_session(filename_path):
 
 
 if __name__=='__main__':
-    main()
+    parser = get_parser()
+    args = parser.parse_args()
+    run_prediction(path_in=args.path_in, ofolder=args.ofolder)
