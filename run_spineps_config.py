@@ -36,10 +36,17 @@ def main():
             os.makedirs(out_folder)
         
         # Run SPINEPS prediction
-        run_prediction(path_image, out_folder)
+        # run_prediction(path_image, out_folder, contrast='T2w')
+        # Use subprocess to deal with problematic segmentations
+        out=subprocess.run([
+            '/home/GRAMES.POLYMTL.CA/p118739/.conda/envs/spineps_env/bin/python',
+            '/home/GRAMES.POLYMTL.CA/p118739/data_nvme_p118739/code/spineps/simple_run.py',
+            '--path-in', path_image,
+            '--ofolder', out_folder
+        ])
 
         # Generate QC
-        if qc:
+        if qc and out.returncode == 0:
             spine_path = os.path.join(out_folder, os.path.basename(path_image).replace('.nii.gz', '_label-vert_dseg.nii.gz'))
             qc_path = os.path.join(derivatives_path, 'qc')
             subprocess.check_call([
