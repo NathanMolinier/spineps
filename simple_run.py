@@ -40,10 +40,11 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Simplify SPINEPS cli.')
     parser.add_argument('--path-in', required=True, help='Path to the input image. Example: /<path_to_BIDS_data>/sub-amuALT/anat/sub-amuALT_T2w.nii.gz (Required)')
     parser.add_argument('--ofolder', required=True, help='Path to the output directory. Example: ~/data/spineps-predictions (Required)')
+    parser.add_argument('--contrast', default='T2w', help='Image contrast (default=T2w)')
     return parser
 
 
-def run_prediction(path_in, ofolder):
+def run_prediction(path_in, ofolder, contrast):
     start_time = time.time()
     
     # Fetch paths
@@ -59,7 +60,7 @@ def run_prediction(path_in, ofolder):
         )
 
     DEFAULTS = {
-        "model_semantic": 't2w_segmentor_2.0',
+        "model_semantic": 't2w_segmentor_2.0' if contrast == 'T2w' else 't1w_segmentor',
         "model_instance": 'inst_vertebra_2.0',
         #
         "save_uncertainty_image": False,
@@ -448,4 +449,4 @@ def fetch_subject_and_session(filename_path):
 if __name__=='__main__':
     parser = get_parser()
     args = parser.parse_args()
-    run_prediction(path_in=args.path_in, ofolder=args.ofolder)
+    run_prediction(path_in=args.path_in, ofolder=args.ofolder, contrast=args.contrast)
